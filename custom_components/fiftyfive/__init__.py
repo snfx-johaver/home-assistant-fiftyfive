@@ -17,7 +17,13 @@ from homeassistant.loader import async_get_loaded_integration
 from fiftyfive import CustomerType
 
 from .api import FiftyfiveApiClient
-from .const import CONF_CUST_TYPE, DEFAULT_UPDATE_INTERVAL, DOMAIN, LOGGER
+from .const import (
+    CONF_CUST_TYPE,
+    CONF_SESSION,
+    DEFAULT_UPDATE_INTERVAL,
+    DOMAIN,
+    LOGGER,
+)
 from .coordinator import FiftyfiveDataUpdateCoordinator
 from .data import FiftyfiveData
 from .service_handler import ChargerServiceHandler
@@ -86,6 +92,7 @@ async def async_setup_entry(
     coordinator = FiftyfiveDataUpdateCoordinator(
         hass=hass,
         logger=LOGGER,
+        config_entry=entry,
         name=DOMAIN,
         update_interval=DEFAULT_UPDATE_INTERVAL,
     )
@@ -103,11 +110,11 @@ async def async_setup_entry(
         integration=async_get_loaded_integration(hass, entry.domain),
         coordinator=coordinator,
     )
+    entry.runtime_data.client.restore_session(entry.data.get(CONF_SESSION, {}))
 
     await coordinator.async_config_entry_first_refresh()
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     return True
 
@@ -118,11 +125,3 @@ async def async_unload_entry(
 ) -> bool:
     """Handle removal of an entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-
-async def async_reload_entry(
-    hass: HomeAssistant,
-    entry: FiftyfiveConfigEntry,
-) -> None:
-    """Reload config entry."""
-    await hass.config_entries.async_reload(entry.entry_id)
